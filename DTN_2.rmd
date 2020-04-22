@@ -1,0 +1,154 @@
+
+
+Author: "Jimmy Lozano"
+date: "4/15/2020"
+
+---
+title: "Rcode for Gary Tang's Stroke Rx Protocols"
+output:
+  df_print: paged
+  html_document: default
+---
+  
+  Protocol type variable: 0 is central, 1 is pharmacist
+
+Statistics for DTN:
+  First set up the Enviro
+```{r SetupEnv}
+remove(list=ls())
+library(psych)
+library(elrm)
+```
+
+Then set up the data steps
+```{r BringInDataDataStep}
+datac = read.csv('Door-To Time Code Stroke Data_all.csv')
+datao = datac[datac$Type==0,]  
+datan = datac[datac$Type==1,]  
+datan <- datan[-c(8),] #Does not have DTN or Primary Goal data.
+```
+
+Now run the analyses
+```{r PlotData}
+boxplot(datao$DTN..Minutes., datan$DTN..Minutes.,
+        ylab= 'Time (minutes)',
+        at = c(1,2),
+        names = c("Central", "Pharmacist"),
+        las = 2,
+        col = c("grey"),
+        border = "black",
+        horizontal = FALSE,
+        notch = TRUE
+)
+```
+
+Figure 1. Boxplots for the comparison of door to needle times under the traditional and amended protocol. Boxplot notches are 95% confidence intervals of the median.
+
+```{r}
+describeBy(datac$DTN..Minutes., datac$Type)
+``` 
+Showcases summary statistics based on protocol.
+
+
+
+Summary statistics of DTN by Primary Goal:
+  
+```{r}
+describeBy(datao$DTN..Minutes., datao$Primary.Goal..Y.N.)
+describeBy(datan$DTN..Minutes., datan$Primary.Goal..Y.N.)
+```
+
+Comments:
+  
+  Newer process has a higher DTN and a higher standard deivation, so based on average DTN I would prefer the old process. In regards to Primary Goals, the No's in the old process produce a smaller DTN. So if the Primary Goal is a No, then the old process is better for that person. The new process only has a minute decrease for the Yes type, so I don't believe this is enough to make up for the No's. However, the new process only has 14 ns while the old process has 32. This may be the reason these difference exist. 
+
+
+Regressions: Primary Goal
+```{r}
+
+xtabs(~Primary.Goal..Y.N. + Type + Teleneurlogist..Y.N. + ANTI.HTN.NEEDED. , data = datac)  #exact
+
+logRaw <- glm(Primary.Goal..Y.N.~Type, family = binomial,data = datac) #Type is the protocol (pharmacist or central) 
+summary(logRaw)
+
+logAdjusted <- glm(Primary.Goal..Y.N.~Type +  ANTI.HTN.NEEDED. + Teleneurlogist..Y.N., family = binomial,data = datac) #Type is the protocol (pharmacist or central) 
+summary(logAdjusted)
+par(mfrow=c(2,2))
+plot(logRaw)
+
+x <- xtabs(~Primary.Goal..Y.N. + interaction(Type,ANTI.HTN.NEEDED., Teleneurlogist..Y.N.), data=datac)
+
+
+cdat <- cdat <- data.frame(Type = rep(0:1, 2),Teleneurlogist..Y.N.=rep(0:1,2), ANTI.HTN.NEEDED. = rep(0:1, each = 2),
+                           Primary.Goal..Y.N. = x[2, ], ntrials = colSums(x))
+
+PrimG <- elrm(formula = Primary.Goal..Y.N./ntrials ~ Type, interest = ~Type, iter = 22000,
+            dataset = cdat, burnIn = 2000)
+summary(PrimG)
+
+
+```
+Figure 2-5: plots of raw logistic regression for Primary Goal.
+
+Raw Regression: 
+Adjusted Regression:
+Exact Regression:
+
+
+
+GLM: Difference in Time
+```{r}
+xtabs(Difference.in.Time..min. ~ Type +ANTI.HTN.NEEDED.+ Teleneurlogist..Y.N., data=datac)
+
+fitRaw <- lm(Difference.in.Time..min. ~ Type, data=datac)
+summary(fitRaw)
+
+fitAdjusted <- lm(Difference.in.Time..min. ~ Type +ANTI.HTN.NEEDED.+ Teleneurlogist..Y.N., data=datac)
+summary(fitAdjusted)
+par(mfrow=c(2,2))
+plot(fitRaw)
+
+x <- xtabs(~Difference.in.Time..min. + interaction(Type,ANTI.HTN.NEEDED., Teleneurlogist..Y.N.), data=datac)
+
+
+cdat <- cdat <- data.frame(Type = rep(0:1, 2),Teleneurlogist..Y.N.=rep(0:1,2), ANTI.HTN.NEEDED. = rep(0:1, each = 2),
+                           Difference.in.Time..min. = x[2, ], ntrials = colSums(x))
+
+DTN <- elrm(formula = Difference.in.Time..min./ntrials ~ Type, interest = ~Type, iter = 22000,
+            dataset = cdat, burnIn = 2000)
+summary(DTN)
+```
+Figure 6-9: plots of raw linear model for Difference in Time. 
+
+
+Raw Regression: 
+Adjusted Regression:
+Exact Regression:
+
+
+
+
+Statistics for Mean Time of Order to Administration: 
+
+```{r}
+boxplot(datao$Difference.in.Time..min. ,datan$Difference.in.Time..min.,
+ylab= 'Time (minutes)',
+at = c(1,2),
+names = c("Central", "Pharmacist"),
+las = 2,
+col = c("grey"),
+border = "brown",
+horizontal = FALSE,
+notch = FALSE
+)
+
+describeBy(datac$Difference.in.Time..min., datac$Type)
+``` 
+
+Summary statistics of DTN by Primary Goal:
+```{r}
+describeBy(datao$Difference.in.Time..min., datao$Primary.Goal..Y.N.)
+describeBy(datan$Difference.in.Time..min., datan$Primary.Goal..Y.N.)
+
+```
+
